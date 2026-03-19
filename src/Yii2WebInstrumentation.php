@@ -64,7 +64,7 @@ class Yii2WebInstrumentation
                 ?string $filename,
                 ?int $lineno,
             ) use ($instrumentation) {
-                $builder = self::makeBuilder($instrumentation, sprintf('View::render (%s)', $params[0] ?? ''), $function, $class, $filename, $lineno);
+                $builder = self::makeBuilder($instrumentation, 'View::render', $function, $class, $filename, $lineno);
                 $parent = Context::getCurrent();
                 $span = $builder->startSpan();
                 Context::storage()->attach($span->storeInContext($parent));
@@ -77,6 +77,16 @@ class Yii2WebInstrumentation
                 $span = Span::fromContext($scope->context());
                 self::end($exception);
             }
+        );
+        hook(
+            View::class,
+            'findViewFile',
+            post: static function (View $view, array $params, string $returnValue, ?Throwable $exception) {
+                if (null === $exception) {
+                    $span = Span::getCurrent();
+                    $span->setAttribute('yii2.view_path', $returnValue);
+                }
+            },
         );
     }
     private static function makeBuilder(
