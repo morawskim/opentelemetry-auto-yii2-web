@@ -80,6 +80,31 @@ class Yii2WebInstrumentation
         );
         hook(
             View::class,
+            'renderAjax',
+            pre: static function (
+                View $view,
+                array $params,
+                string $class,
+                string $function,
+                ?string $filename,
+                ?int $lineno,
+            ) use ($instrumentation) {
+                $builder = self::makeBuilder($instrumentation, 'View::renderAjax', $function, $class, $filename, $lineno);
+                $parent = Context::getCurrent();
+                $span = $builder->startSpan();
+                Context::storage()->attach($span->storeInContext($parent));
+            },
+            post: static function (View $view, array $params, mixed $returnValue, ?Throwable $exception) {
+                $scope = Context::storage()->scope();
+                if (!$scope) {
+                    return;
+                }
+                $span = Span::fromContext($scope->context());
+                self::end($exception);
+            }
+        );
+        hook(
+            View::class,
             'findViewFile',
             post: static function (View $view, array $params, string $returnValue, ?Throwable $exception) {
                 if (null === $exception) {
